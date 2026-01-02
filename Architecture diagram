@@ -1,0 +1,45 @@
+graph TB
+    subgraph Frontend["Frontend - React + TypeScript"]
+        UI[React Components]
+        Router[React Router]
+        Editor[Monaco Editor]
+        API[Axios API Client]
+    end
+
+    subgraph Backend["Backend - Node.js + Express"]
+        Routes[API Routes]
+        Auth[Auth Middleware]
+        Controllers[Controllers]
+        Services[Services]
+        Executor[Code Executor]
+    end
+
+    subgraph Database["MongoDB"]
+        Users[(Users)]
+        Problems[(Problems)]
+        Submissions[(Submissions)]
+    end
+
+    subgraph Execution["Code Execution"]
+        Node[Node.js Runtime]
+        Python[Python 3 Runtime]
+        Temp[Temp Files]
+    end
+
+    UI -->|HTTP Requests| API
+    API -->|JWT Token| Routes
+    Routes -->|Verify| Auth
+    Auth -->|Authorized| Controllers
+    Controllers -->|Business Logic| Services
+    Services -->|Execute Code| Executor
+    Executor -->|Run| Node
+    Executor -->|Run| Python
+    Executor -->|Create/Delete| Temp
+    Controllers -->|Query/Update| Users
+    Controllers -->|Query/Update| Problems
+    Controllers -->|Query/Update| Submissions
+
+    style Frontend fill:#e3f2fd
+    style Backend fill:#fff3e0
+    style Database fill:#e8f5e9
+    style Execution fill:#fce4ec
