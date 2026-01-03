@@ -70,24 +70,27 @@ export default function Submissions() {
               </th>
             </tr>
           </thead>
+
           <tbody className="divide-y divide-gray-200">
             {submissions.map((submission) => (
               <tr key={submission._id} className="hover:bg-gray-50">
                 <td className="px-6 py-4">
                   <div>
                     <div className="font-medium text-gray-900">
-                      {submission.problemId.title}
+                      {submission.problemId?.title ?? 'Problem Deleted'}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {submission.problemId.difficulty}
+                      {submission.problemId?.difficulty ?? '—'}
                     </div>
                   </div>
                 </td>
+
                 <td className="px-6 py-4">
                   <span className="px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded">
                     {submission.language}
                   </span>
                 </td>
+
                 <td className="px-6 py-4">
                   <span
                     className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
@@ -97,11 +100,16 @@ export default function Submissions() {
                     {submission.status}
                   </span>
                 </td>
+
                 <td className="px-6 py-4">
                   <div className="text-sm">
-                    <div className={`font-medium ${
-                      submission.accuracy === 100 ? 'text-green-600' : 'text-orange-600'
-                    }`}>
+                    <div
+                      className={`font-medium ${
+                        submission.accuracy === 100
+                          ? 'text-green-600'
+                          : 'text-orange-600'
+                      }`}
+                    >
                       {submission.accuracy.toFixed(1)}%
                     </div>
                     <div className="text-gray-500">
@@ -109,6 +117,7 @@ export default function Submissions() {
                     </div>
                   </div>
                 </td>
+
                 <td className="px-6 py-4 text-sm text-gray-500">
                   {formatDate(submission.createdAt)}
                 </td>
