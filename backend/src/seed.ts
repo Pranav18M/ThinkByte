@@ -1,28 +1,12 @@
 import mongoose from 'mongoose';
 import { sampleProblems } from './data/sampleProblems';
+import Problem from './models/Problem';
 
 const MONGODB_URI =
   'mongodb+srv://Pranav:Pranav_018@atsresumescanner.sbuvn4m.mongodb.net/CodeMetric_db?retryWrites=true&w=majority';
 
-const problemSchema = new mongoose.Schema({
-  id: String,
-  title: String,
-  description: String,
-  difficulty: String,
-  functionName: String,
-  starterCode: {
-    javascript: String,
-    python: String
-  },
-  testCases: [
-    {
-      input: mongoose.Schema.Types.Mixed,
-      expectedOutput: mongoose.Schema.Types.Mixed
-    }
-  ]
-});
 
-const Problem = mongoose.model('Problem', problemSchema);
+//const Problem = mongoose.model('Problem', problemSchema);
 
 async function seed() {
   try {

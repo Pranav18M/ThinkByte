@@ -9,12 +9,21 @@ export default function Navbar({ isAuthenticated, onLogout }: NavbarProps) {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   return (
-    <nav className="bg-white shadow-lg">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-          <Link to="/problems" className="text-2xl font-bold text-blue-600">
-            CodePractice
-          </Link>
+  <nav className="bg-white shadow-lg">
+    <div className="container mx-auto px-4">
+      <div className="flex justify-between items-center h-16">
+        
+        <Link
+          to="/problems"
+          className="flex items-center gap-2 text-2xl font-bold text-blue-600"
+        >
+          <img
+            src="/ThinkByte.svg"
+            alt="ThinkByte Logo"
+            className="w-8 h-8"
+          />
+          ThinkByte
+        </Link>
 
           {isAuthenticated ? (
             <div className="flex items-center space-x-6">
