@@ -51,4 +51,6 @@ export const getSubmissions = (problemId?: string) =>
 export const getSubmission = (id: string) =>
   api.get(`/submissions/${id}`);
 
+console.log('API URL =>', import.meta.env.VITE_API_URL);
+
 export default api;
