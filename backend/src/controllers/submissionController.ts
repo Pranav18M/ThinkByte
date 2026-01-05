@@ -7,15 +7,9 @@ import codeExecutor from '../services/codeExecutor';
 
 const ALLOWED_LANGUAGES = ['javascript', 'python'];
 
-// sanitize test cases to only include input & expectedOutput
-const sanitizeTestCases = (testCases: any[]) => {
-  return testCases.map(tc => ({
-    input: tc.input,
-    expectedOutput: tc.expectedOutput
-  }));
-};
-
-// ==================== Submit Code (Judge Mode) ====================
+// ==========================
+// SUBMIT CODE (JUDGE MODE)
+// ==========================
 export const submitCode = async (req: AuthRequest, res: Response) => {
   try {
     const { problemId, code, language } = req.body;
@@ -30,17 +24,17 @@ export const submitCode = async (req: AuthRequest, res: Response) => {
     }
 
     const problem = await Problem.findById(problemId).lean();
-    if (!problem) return res.status(404).json({ error: 'Problem not found' });
+    if (!problem) {
+      return res.status(404).json({ error: 'Problem not found' });
+    }
 
-    // Judge mode: execute all test cases
     const result = await codeExecutor.execute(
       code,
       language,
       problem.functionName,
-      sanitizeTestCases(problem.testCases)
+      problem.testCases
     );
 
-    // Save submission
     const submission = await Submission.create({
       userId,
       problemId,
@@ -53,7 +47,6 @@ export const submitCode = async (req: AuthRequest, res: Response) => {
       error: result.error
     });
 
-    // Add to solvedProblems if fully correct
     if (result.status === 'Accepted') {
       await User.findByIdAndUpdate(userId, {
         $addToSet: { solvedProblems: problemId }
@@ -66,7 +59,7 @@ export const submitCode = async (req: AuthRequest, res: Response) => {
       accuracy: result.accuracy,
       passedCases: result.passedCases,
       totalCases: result.totalCases,
-      error: result.error
+      error: result.error || null
     });
   } catch (err) {
     console.error('Submit error:', err);
@@ -74,49 +67,37 @@ export const submitCode = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// ==================== Run Code (Playground Mode) ====================
-// ==================== Run Code (Playground Mode) ====================
+// ==========================
+// RUN CODE (REAL-TIME MODE)
+// ==========================
 export const runCode = async (req: AuthRequest, res: Response) => {
   try {
-    const { problemId, code, language } = req.body;
+    const { code, language } = req.body;
 
-    if (!problemId || !code || !language)
+    if (!code || !language) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
 
-    if (!ALLOWED_LANGUAGES.includes(language))
+    if (!ALLOWED_LANGUAGES.includes(language)) {
       return res.status(400).json({ error: 'Unsupported language' });
+    }
 
-    const problem = await Problem.findById(problemId).lean();
-    if (!problem) return res.status(404).json({ error: 'Problem not found' });
-
-    const [testCase] = sanitizeTestCases(problem.testCases);
-
-    // Run single test
-    const execResult = await codeExecutor.runSingleTest(
-      code,
-      language,
-      problem.functionName,
-      testCase.input
-    );
-
-    // UX fix: always show Accepted unless runtime error occurs
-    const status = execResult.error ? 'Runtime Error' : 'Accepted';
+    // 🔥 REAL-TIME execution (NO test cases, NO expected output)
+    const result = await codeExecutor.runRaw(code, language);
 
     return res.json({
-      status,                // Force Accepted for Run mode
-      output: execResult.output,
-      input: testCase.input,
-      expectedOutput: testCase.expectedOutput,
-      error: execResult.error || null
+      output: result.stdout || '',
+      error: result.stderr || null
     });
   } catch (err) {
     console.error('Run error:', err);
-    return res.status(500).json({ error: 'Code execution failed' });
+    return res.status(500).json({ error: 'Run execution failed' });
   }
 };
 
-
-// ==================== Get User Submissions ====================
+// ==========================
+// GET USER SUBMISSIONS
+// ==========================
 export const getUserSubmissions = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId;
@@ -137,16 +118,21 @@ export const getUserSubmissions = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// ==================== Get Submission By ID ====================
+// ==========================
+// GET SUBMISSION BY ID
+// ==========================
 export const getSubmissionById = async (req: AuthRequest, res: Response) => {
   try {
     const submission = await Submission.findById(req.params.id)
       .populate('problemId', 'title difficulty');
 
-    if (!submission) return res.status(404).json({ error: 'Submission not found' });
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
 
-    if (submission.userId.toString() !== req.userId)
+    if (submission.userId.toString() !== req.userId) {
       return res.status(403).json({ error: 'Access denied' });
+    }
 
     return res.json(submission);
   } catch (err) {
