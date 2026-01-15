@@ -65,48 +65,64 @@ export default function Login({ onLogin }: LoginProps) {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 dark:from-slate-900 dark:via-slate-950 dark:to-black flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen flex">
       
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      {/* Left Side - Image */}
+      <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 relative overflow-hidden">
+        <img
+          src="/sitting.jpg"
+          alt="ThinkByte"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-indigo-900/70 to-purple-900/80"></div>
+        
+        <div className="relative z-10 flex flex-col justify-center items-center text-center px-8 xl:px-16 w-full">
+          <div className="mb-8">
+            <img
+              src="/ThinkByte.svg"
+              alt="ThinkByte Logo"
+              className="w-24 h-24 xl:w-32 xl:h-32 mx-auto drop-shadow-2xl"
+            />
+          </div>
+          <h1 className="text-4xl xl:text-6xl font-extrabold text-white mb-4 leading-tight">
+            Welcome Back to ThinkByte
+          </h1>
+          <p className="text-xl xl:text-2xl text-blue-100 max-w-2xl leading-relaxed">
+            Continue your journey to master coding and ace technical interviews
+          </p>
+        </div>
       </div>
 
-      <div className="w-full max-w-md relative z-10">
+      {/* Right Side - Form */}
+      <div className="w-full lg:w-1/2 xl:w-2/5 flex items-center justify-center bg-white dark:bg-slate-900 p-6 sm:p-8 lg:p-12">
+        <div className="w-full max-w-md">
 
-        {/* Header */}
-        <div className="text-center mb-8 animate-fade-in">
-          <div className="inline-block p-4 bg-white/10 backdrop-blur-xl rounded-3xl mb-6 border border-white/20 shadow-2xl hover:scale-105 transition-transform duration-300">
+          {/* Mobile Logo */}
+          <div className="lg:hidden text-center mb-8">
             <img
               src="/ThinkByte.svg"
               alt="ThinkByte"
-              className="w-16 h-16 sm:w-20 sm:h-20 drop-shadow-2xl"
-              loading="lazy"
+              className="w-16 h-16 mx-auto mb-4"
             />
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Welcome Back</h2>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-3 bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">
-            Welcome Back
-          </h1>
-          <p className="text-blue-100 dark:text-slate-300 text-base sm:text-lg font-medium">
-            Sign in to continue your coding journey
-          </p>
-        </div>
 
-        {/* Card */}
-        <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-2xl rounded-3xl shadow-2xl p-6 sm:p-8 border border-white/30 dark:border-slate-700 transform hover:scale-[1.02] transition-all duration-300">
+          {/* Desktop Title */}
+          <div className="hidden lg:block mb-8">
+            <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white mb-2">Sign In</h2>
+            <p className="text-slate-600 dark:text-slate-400 text-lg">Access your account</p>
+          </div>
 
           {error && (
-            <div className="bg-red-50 dark:bg-red-950 border-l-4 border-red-500 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl mb-6 animate-shake">
+            <div className="bg-red-50 dark:bg-red-950 border-l-4 border-red-500 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-6">
               <div className="flex items-center gap-2">
                 <span className="text-lg">⚠️</span>
-                <p className="font-semibold text-sm sm:text-base">{error}</p>
+                <p className="font-semibold text-sm">{error}</p>
               </div>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">
                 Email Address
@@ -116,7 +132,7 @@ export default function Login({ onLogin }: LoginProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm hover:border-blue-300 dark:hover:border-blue-500"
+                className="w-full px-4 py-3 border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="you@example.com"
                 required
               />
@@ -132,7 +148,7 @@ export default function Login({ onLogin }: LoginProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
-                  className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm hover:border-blue-300 dark:hover:border-blue-500 pr-12"
+                  className="w-full px-4 py-3 border-2 border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12"
                   placeholder="••••••••"
                   required
                 />
@@ -159,7 +175,7 @@ export default function Login({ onLogin }: LoginProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-95 text-base"
+              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-95"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -167,33 +183,43 @@ export default function Login({ onLogin }: LoginProps) {
                   Signing in...
                 </span>
               ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <span>Sign In</span>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                </span>
+                'Sign In'
               )}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base">
+            <p className="text-slate-600 dark:text-slate-400">
               Don't have an account?{' '}
               <Link
                 to="/register"
-                className="text-blue-600 dark:text-blue-400 font-bold hover:underline hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                className="text-blue-600 dark:text-blue-400 font-bold hover:underline"
               >
-                Create one now →
+                Create Account
               </Link>
             </p>
           </div>
-        </div>
 
-        <p className="text-center text-blue-100 dark:text-slate-400 text-xs sm:text-sm mt-6 font-medium">
-          © 2026 ThinkByte. All rights reserved.
-        </p>
+          <p className="text-center text-slate-500 dark:text-slate-400 text-xs mt-8">
+            © 2026 ThinkByte. All rights reserved.
+          </p>
+        </div>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .min-h-screen { min-height: 100dvh; }
+        }
+        
+        @media (min-height: 900px) {
+          .lg\\:p-12 { padding: 3rem; }
+        }
+        
+        @media (max-height: 700px) {
+          .space-y-6 > * + * { margin-top: 1rem; }
+          .mb-8 { margin-bottom: 1.5rem; }
+        }
+      `}</style>
     </div>
   );
 }

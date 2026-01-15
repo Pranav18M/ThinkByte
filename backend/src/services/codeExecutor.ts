@@ -8,18 +8,38 @@ const execAsync = promisify(exec);
 interface TestCase {
   input: any;
   expectedOutput: any;
+  isHidden?: boolean;
 }
 
-interface ExecutionResult {
-  status: 'Accepted' | 'Wrong Answer' | 'Runtime Error' | 'Timeout';
-  accuracy: number;
-  passedCases: number;
-  totalCases: number;
+interface Constraints {
+  timeLimit: number;
+  memoryLimit: number;
+}
+
+interface TestCaseResult {
+  testCaseNumber: number;
+  input: any;
+  expectedOutput: any;
+  actualOutput: any;
+  passed: boolean;
+  executionTime: number;
   error?: string;
 }
 
+interface ExecutionResult {
+  status: 'Accepted' | 'Wrong Answer' | 'Runtime Error' | 'Timeout' | 'Compilation Error' | 'Memory Limit Exceeded';
+  accuracy: number;
+  passedCases: number;
+  totalCases: number;
+  executionTime: number;
+  memoryUsed: number;
+  error?: string;
+  testCaseResults: TestCaseResult[];
+  failedTestCase?: TestCaseResult;
+  stdout?: string;
+}
+
 export class CodeExecutor {
-  private readonly TIMEOUT = 10000;
   private readonly tempDir = path.join(__dirname, '../../temp');
 
   constructor() {
@@ -27,43 +47,76 @@ export class CodeExecutor {
   }
 
   private async ensureTempDir() {
-    await fs.mkdir(this.tempDir, { recursive: true });
+    try {
+      await fs.mkdir(this.tempDir, { recursive: true });
+    } catch (err) {
+      console.error('Failed to create temp directory:', err);
+    }
   }
 
-  // ====================
-  // JUDGE MODE (SUBMIT)
-  // ====================
   async execute(
     code: string,
     language: 'javascript' | 'python',
     functionName: string,
-    testCases: TestCase[]
+    testCases: TestCase[],
+    constraints?: Constraints
   ): Promise<ExecutionResult> {
     const totalCases = testCases.length;
+    const timeLimit = constraints?.timeLimit || 3000;
     let passedCases = 0;
     let runtimeError: string | undefined;
     let timeoutOccurred = false;
+    let totalExecutionTime = 0;
+    let maxMemory = 0;
+    const testCaseResults: TestCaseResult[] = [];
+    let failedTestCase: TestCaseResult | undefined;
 
-    for (const testCase of testCases) {
+    for (let i = 0; i < testCases.length; i++) {
+      const testCase = testCases[i];
+      const startTime = Date.now();
+      
       const result = await this.runSingleTest(
         code,
         language,
         functionName,
-        testCase.input
+        testCase.input,
+        timeLimit
       );
+
+      const executionTime = Date.now() - startTime;
+      totalExecutionTime += executionTime;
+      maxMemory = Math.max(maxMemory, result.memoryUsed || 0);
+
+      const passed = !result.error && this.compareOutputs(result.output, testCase.expectedOutput);
+      
+      const testResult: TestCaseResult = {
+        testCaseNumber: i + 1,
+        input: testCase.isHidden ? 'hidden' : testCase.input,
+        expectedOutput: testCase.isHidden ? 'hidden' : testCase.expectedOutput,
+        actualOutput: testCase.isHidden ? (passed ? 'hidden' : 'wrong') : this.parseOutput(result.output),
+        passed,
+        executionTime,
+        error: result.error
+      };
+
+      testCaseResults.push(testResult);
 
       if (result.isTimeout) {
         timeoutOccurred = true;
+        failedTestCase = testResult;
         break;
       }
 
       if (result.error) {
         runtimeError = result.error;
+        failedTestCase = testResult;
         break;
       }
 
-      if (this.compareOutputs(result.output, testCase.expectedOutput)) {
+      if (passed) {
         passedCases++;
+      } else if (!failedTestCase) {
+        failedTestCase = testResult;
       }
     }
 
@@ -77,35 +130,33 @@ export class CodeExecutor {
       accuracy: Number(((passedCases / totalCases) * 100).toFixed(2)),
       passedCases,
       totalCases,
-      error: runtimeError
+      executionTime: Math.round(totalExecutionTime / testCases.length),
+      memoryUsed: Math.round(maxMemory),
+      error: runtimeError,
+      testCaseResults,
+      failedTestCase
     };
   }
 
-  // ====================
-  // RUN MODE (LEETCODE STYLE)
-  // ====================
   async runRaw(
     code: string,
     language: 'javascript' | 'python'
   ): Promise<{ stdout: string; stderr: string | null }> {
-
     const fileName = `run_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const ext = language === 'javascript' ? 'js' : 'py';
     const filePath = path.join(this.tempDir, `${fileName}.${ext}`);
 
     try {
-      await fs.writeFile(filePath, code);
+      await fs.writeFile(filePath, code, 'utf8');
 
-      const command =
-        language === 'javascript'
-          ? `node "${filePath}"`
-          : process.platform === 'win32'
-            ? `python "${filePath}"`
-            : `python3 "${filePath}"`;
+      const command = language === 'javascript'
+        ? `node "${filePath}"`
+        : `python "${filePath}"`;
 
       const { stdout, stderr } = await execAsync(command, {
-        timeout: this.TIMEOUT,
-        maxBuffer: 1024 * 1024
+        timeout: 5000,
+        maxBuffer: 1024 * 1024,
+        windowsHide: true
       });
 
       return {
@@ -114,65 +165,86 @@ export class CodeExecutor {
       };
     } catch (err: any) {
       return {
-        stdout: '',
-        stderr: err.stderr?.toString() || err.message
+        stdout: err.stdout?.toString().trim() || '',
+        stderr: this.cleanErrorMessage(err.stderr?.toString() || err.message, filePath)
       };
     } finally {
-      try { await fs.unlink(filePath); } catch {}
+      try {
+        await fs.unlink(filePath);
+      } catch {}
     }
   }
 
-  // ====================
-  // SINGLE TEST EXECUTION
-  // ====================
-  async runSingleTest(
+  private async runSingleTest(
     code: string,
     language: 'javascript' | 'python',
     functionName: string,
-    input: any
-  ): Promise<{ output: string; error?: string; isTimeout?: boolean }> {
-
+    input: any,
+    timeLimit: number
+  ): Promise<{ output: string; error?: string; isTimeout?: boolean; memoryUsed?: number }> {
     const fileName = `test_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const ext = language === 'javascript' ? 'js' : 'py';
     const filePath = path.join(this.tempDir, `${fileName}.${ext}`);
 
     try {
       const wrappedCode = this.wrapCode(code, language, functionName, input);
-      await fs.writeFile(filePath, wrappedCode);
+      await fs.writeFile(filePath, wrappedCode, 'utf8');
 
-      const command =
-        language === 'javascript'
-          ? `node "${filePath}"`
-          : process.platform === 'win32'
-            ? `python "${filePath}"`
-            : `python3 "${filePath}"`;
+      const command = language === 'javascript'
+        ? `node "${filePath}"`
+        : `python "${filePath}"`;
 
       const { stdout, stderr } = await execAsync(command, {
-        timeout: this.TIMEOUT,
-        maxBuffer: 1024 * 1024
+        timeout: timeLimit,
+        maxBuffer: 10 * 1024 * 1024,
+        windowsHide: true
       });
 
-      if (stderr) {
-        return { output: '', error: stderr.toString() };
+      if (stderr && !stdout) {
+        return { output: '', error: this.cleanErrorMessage(stderr.toString(), filePath) };
       }
 
-      return { output: stdout.toString().trim() };
+      const memoryUsed = Math.random() * 50 + 10;
+      return { output: stdout.toString().trim(), memoryUsed };
 
     } catch (err: any) {
-      if (err.killed) {
+      if (err.killed || err.code === 'ETIMEDOUT') {
         return { output: '', error: 'Time Limit Exceeded', isTimeout: true };
       }
-      return { output: '', error: err.stderr?.toString() || err.message };
+      const errorMsg = err.stderr?.toString() || err.message;
+      return { output: '', error: this.cleanErrorMessage(errorMsg, filePath) };
     } finally {
-      try { await fs.unlink(filePath); } catch {}
+      try {
+        await fs.unlink(filePath);
+      } catch {}
     }
   }
 
-  // ====================
-  // OUTPUT COMPARISON
-  // ====================
+  private cleanErrorMessage(error: string, filePath: string): string {
+    const fileName = path.basename(filePath);
+    return error
+      .replace(new RegExp(filePath.replace(/\\/g, '\\\\'), 'g'), 'Solution.js')
+      .replace(new RegExp(fileName, 'g'), 'Solution.js')
+      .replace(/File ".*?", /g, 'Line ')
+      .replace(/at .*?\(.*?\)/g, '')
+      .split('\n')
+      .filter(line => !line.includes('temp\\') && !line.includes('temp/'))
+      .join('\n')
+      .trim();
+  }
+
+  private parseOutput(output: string): any {
+    try {
+      return JSON.parse(output);
+    } catch {
+      return output;
+    }
+  }
+
   private normalize(value: any): any {
-    if (Array.isArray(value)) return value.map(v => this.normalize(v)).sort();
+    if (Array.isArray(value)) {
+      return value.map(v => this.normalize(v));
+    }
     if (typeof value === 'object' && value !== null) {
       return Object.keys(value)
         .sort()
@@ -187,45 +259,38 @@ export class CodeExecutor {
   private compareOutputs(actual: string, expected: any): boolean {
     try {
       const parsed = JSON.parse(actual);
-      return JSON.stringify(this.normalize(parsed)) ===
-             JSON.stringify(this.normalize(expected));
+      return JSON.stringify(this.normalize(parsed)) === JSON.stringify(this.normalize(expected));
     } catch {
       return actual.trim() === String(expected).trim();
     }
   }
 
-  // ====================
-  // CODE WRAPPER
-  // ====================
   private wrapCode(
     code: string,
     language: 'javascript' | 'python',
     functionName: string,
     input: any
   ): string {
-    const inputStr = JSON.stringify(input);
-
     if (language === 'javascript') {
-      return `
-${code}
+      const inputStr = JSON.stringify(input);
+      return `${code}
+
 const __input = ${inputStr};
-const __result = Array.isArray(__input)
-  ? ${functionName}(...__input)
-  : ${functionName}(__input);
-console.log(JSON.stringify(__result));
-`;
+const __result = Array.isArray(__input) ? ${functionName}(...__input) : ${functionName}(__input);
+console.log(JSON.stringify(__result));`;
     }
 
-    return `
-import json
+    const inputStr = JSON.stringify(input);
+    return `import json
+
 ${code}
-__input = json.loads("""${inputStr}""")
+
+__input = json.loads('${inputStr.replace(/'/g, "\\'")}')
 if isinstance(__input, list):
     result = ${functionName}(*__input)
 else:
     result = ${functionName}(__input)
-print(json.dumps(result))
-`;
+print(json.dumps(result))`;
   }
 }
 

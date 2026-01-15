@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
+import Welcome from './pages/Welcome';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Dashboard from "./pages/Dashboard";
 import ProblemList from './pages/ProblemList';
 import ProblemDetail from './pages/ProblemDetail';
 import Submissions from './pages/Submissions';
@@ -54,11 +56,19 @@ function App() {
         )}
 
         <Routes>
+          {/* Welcome Page - First page users see */}
+          <Route
+            path="/"
+            element={
+              isAuthenticated ? <Navigate to="/dashboard" /> : <Welcome />
+            }
+          />
+
           <Route
             path="/login"
             element={
               isAuthenticated ? (
-                <Navigate to="/problems" />
+                <Navigate to="/dashboard" />
               ) : (
                 <Login onLogin={() => setIsAuthenticated(true)} />
               )
@@ -69,35 +79,40 @@ function App() {
             path="/register"
             element={
               isAuthenticated ? (
-                <Navigate to="/problems" />
+                <Navigate to="/dashboard" />
               ) : (
                 <Register onRegister={() => setIsAuthenticated(true)} />
               )
+            }
+          />
+          
+          <Route
+            path="/dashboard"
+            element={
+              isAuthenticated ? <Dashboard /> : <Navigate to="/" />
             }
           />
 
           <Route
             path="/problems"
             element={
-              isAuthenticated ? <ProblemList /> : <Navigate to="/login" />
+              isAuthenticated ? <ProblemList /> : <Navigate to="/" />
             }
           />
 
           <Route
             path="/problems/:id"
             element={
-              isAuthenticated ? <ProblemDetail /> : <Navigate to="/login" />
+              isAuthenticated ? <ProblemDetail /> : <Navigate to="/" />
             }
           />
 
           <Route
             path="/submissions"
             element={
-              isAuthenticated ? <Submissions /> : <Navigate to="/login" />
+              isAuthenticated ? <Submissions /> : <Navigate to="/" />
             }
           />
-
-          <Route path="/" element={<Navigate to="/problems" />} />
         </Routes>
       </div>
     </BrowserRouter>

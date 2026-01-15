@@ -1,11 +1,11 @@
-// ==================== Shared Status ====================
 export type JudgeStatus =
   | 'Accepted'
   | 'Wrong Answer'
   | 'Runtime Error'
-  | 'Timeout';
+  | 'Timeout'
+  | 'Compilation Error'
+  | 'Memory Limit Exceeded';
 
-// ==================== User ====================
 export interface User {
   id: string;
   name: string;
@@ -13,7 +13,27 @@ export interface User {
   solvedProblems?: string[];
 }
 
-// ==================== Problem ====================
+export interface TestCaseResult {
+  testCaseNumber: number;
+  input: any;
+  expectedOutput: any;
+  actualOutput: any;
+  passed: boolean;
+  executionTime: number;
+  error?: string;
+}
+
+export interface Example {
+  input: string;
+  output: string;
+  explanation?: string;
+}
+
+export interface Constraints {
+  timeLimit: number;
+  memoryLimit: number;
+}
+
 export interface Problem {
   _id: string;
   title: string;
@@ -25,10 +45,20 @@ export interface Problem {
     javascript: string;
     python: string;
   };
-  testCasesCount?: number;
+  sampleTestCases?: Array<{
+    input: any;
+    expectedOutput: any;
+  }>;
+  totalTestCases?: number;
+  hiddenTestCases?: number;
+  constraints?: Constraints;
+  examples?: Example[];
+  hints?: string[];
+  acceptanceRate?: number;
+  totalSubmissions?: number;
+  totalAccepted?: number;
 }
 
-// ==================== Submission (History List) ====================
 export interface Submission {
   _id: string;
   problemId: {
@@ -42,25 +72,28 @@ export interface Submission {
   accuracy: number;
   passedCases: number;
   totalCases: number;
+  executionTime?: number;
+  memoryUsed?: number;
   error?: string;
   createdAt: string;
 }
 
-// ==================== Submit API Result ====================
 export interface SubmissionResult {
   submissionId: string;
   status: JudgeStatus;
   accuracy: number;
   passedCases: number;
   totalCases: number;
-  error?: string;
+  executionTime?: number;
+  memoryUsed?: number;
+  error?: string | null;
+  failedTestCase?: TestCaseResult;
 }
 
-// ==================== Run API Result (Playground Mode) ====================
 export interface RunResult {
-  status: 'Accepted' | 'Runtime Error';
   output: string;
-  input: any;
-  expectedOutput: any;
   error?: string | null;
+  testCaseResults?: TestCaseResult[];
+  passedCases?: number;
+  totalCases?: number;
 }

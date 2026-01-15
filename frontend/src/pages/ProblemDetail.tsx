@@ -2,12 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { getProblem, submitCode, runCode } from '../services/api';
-import { Problem, SubmissionResult } from '../types';
-
-interface RunResult {
-  output: string;
-  error?: string | null;
-}
+import { Problem, SubmissionResult, RunResult, TestCaseResult } from '../types';
 
 export default function ProblemDetail() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +17,8 @@ export default function ProblemDetail() {
 
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [result, setResult] = useState<SubmissionResult | null>(null);
+  const [activeTab, setActiveTab] = useState<'description' | 'examples' | 'hints'>('description');
+  const [showTestCases, setShowTestCases] = useState(false);
 
   useEffect(() => {
     fetchProblem();
@@ -46,13 +43,11 @@ export default function ProblemDetail() {
   const handleRun = async () => {
     setRunning(true);
     setRunResult(null);
+    setResult(null);
 
     try {
       const res = await runCode(id!, code, language);
-      setRunResult({
-        output: res.data.output ?? '',
-        error: res.data.error ?? null
-      });
+      setRunResult(res.data);
     } catch (err: any) {
       setRunResult({
         output: '',
@@ -66,6 +61,7 @@ export default function ProblemDetail() {
   const handleSubmit = async () => {
     setSubmitting(true);
     setResult(null);
+    setRunResult(null);
 
     try {
       const res = await submitCode(id!, code, language);
@@ -79,7 +75,7 @@ export default function ProblemDetail() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-slate-600 dark:text-slate-400 font-medium">Loading problem...</p>
         </div>
       </div>
@@ -105,25 +101,124 @@ export default function ProblemDetail() {
           
           {/* LEFT - Problem Description */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden h-[calc(100vh-8rem)] flex flex-col">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-700 dark:to-purple-700 p-4 sm:p-6">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">{problem.title}</h1>
-              <div className="flex items-center gap-2">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  problem.difficulty === 'Easy' ? 'bg-green-500/20 text-green-100 border border-green-400' :
-                  problem.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-100 border border-yellow-400' :
-                  'bg-red-500/20 text-red-100 border border-red-400'
+            <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 p-4 sm:p-6">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">{problem.title}</h1>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${
+                  problem.difficulty === 'Easy' ? 'bg-green-500/20 text-green-100 border-green-400' :
+                  problem.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-100 border-yellow-400' :
+                  'bg-red-500/20 text-red-100 border-red-400'
                 }`}>
-                  {problem.difficulty || 'Hard'}
+                  {problem.difficulty}
                 </span>
+                {problem.acceptanceRate !== undefined && (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white border border-white/20">
+                    Acceptance: {problem.acceptanceRate.toFixed(1)}%
+                  </span>
+                )}
               </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+              <button
+                onClick={() => setActiveTab('description')}
+                className={`px-6 py-3 font-semibold text-sm transition-all ${
+                  activeTab === 'description'
+                    ? 'text-cyan-600 dark:text-cyan-400 border-b-2 border-cyan-600 dark:border-cyan-400 bg-white dark:bg-slate-800'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                Description
+              </button>
+              {problem.examples && problem.examples.length > 0 && (
+                <button
+                  onClick={() => setActiveTab('examples')}
+                  className={`px-6 py-3 font-semibold text-sm transition-all ${
+                    activeTab === 'examples'
+                      ? 'text-cyan-600 dark:text-cyan-400 border-b-2 border-cyan-600 dark:border-cyan-400 bg-white dark:bg-slate-800'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Examples
+                </button>
+              )}
+              {problem.hints && problem.hints.length > 0 && (
+                <button
+                  onClick={() => setActiveTab('hints')}
+                  className={`px-6 py-3 font-semibold text-sm transition-all ${
+                    activeTab === 'hints'
+                      ? 'text-cyan-600 dark:text-cyan-400 border-b-2 border-cyan-600 dark:border-cyan-400 bg-white dark:bg-slate-800'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Hints
+                </button>
+              )}
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-              <div className="prose prose-slate dark:prose-invert max-w-none">
-                <pre className="whitespace-pre-wrap text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed font-sans">
-                  {problem.description}
-                </pre>
-              </div>
+              {activeTab === 'description' && (
+                <div className="space-y-6">
+                  <div className="prose prose-slate dark:prose-invert max-w-none">
+                    <pre className="whitespace-pre-wrap text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed font-sans">
+                      {problem.description}
+                    </pre>
+                  </div>
+
+                  {problem.constraints && (
+                    <div className="bg-slate-100 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                      <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-2">Constraints:</h3>
+                      <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+                        <li>• Time Limit: {problem.constraints.timeLimit}ms</li>
+                        <li>• Memory Limit: {problem.constraints.memoryLimit}MB</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'examples' && problem.examples && (
+                <div className="space-y-4">
+                  {problem.examples.map((example, idx) => (
+                    <div key={idx} className="bg-slate-100 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                      <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-2">Example {idx + 1}:</h3>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">Input:</span>
+                          <pre className="mt-1 p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100">
+                            {example.input}
+                          </pre>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">Output:</span>
+                          <pre className="mt-1 p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100">
+                            {example.output}
+                          </pre>
+                        </div>
+                        {example.explanation && (
+                          <div>
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">Explanation:</span>
+                            <p className="mt-1 text-slate-600 dark:text-slate-400">{example.explanation}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'hints' && problem.hints && (
+                <div className="space-y-3">
+                  {problem.hints.map((hint, idx) => (
+                    <div key={idx} className="bg-yellow-50 dark:bg-yellow-950 rounded-xl p-4 border-l-4 border-yellow-500">
+                      <p className="text-sm text-slate-700 dark:text-slate-300">
+                        <span className="font-bold">Hint {idx + 1}:</span> {hint}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -139,7 +234,7 @@ export default function ProblemDetail() {
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value as any)}
-                    className="appearance-none px-4 py-2.5 pr-10 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-medium border-2 border-slate-300 dark:border-slate-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-all cursor-pointer hover:border-blue-400"
+                    className="appearance-none px-4 py-2.5 pr-10 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-medium border-2 border-slate-300 dark:border-slate-600 focus:border-cyan-500 dark:focus:border-cyan-400 focus:outline-none transition-all cursor-pointer hover:border-cyan-400"
                   >
                     <option value="javascript">JavaScript</option>
                     <option value="python">Python</option>
@@ -164,9 +259,7 @@ export default function ProblemDetail() {
                         Running...
                       </span>
                     ) : (
-                      <span className="flex items-center gap-2">
-                        ▶ Run
-                      </span>
+                      '▶ Run'
                     )}
                   </button>
                   
@@ -181,9 +274,7 @@ export default function ProblemDetail() {
                         Submitting...
                       </span>
                     ) : (
-                      <span className="flex items-center gap-2">
-                        ✓ Submit
-                      </span>
+                      '✓ Submit'
                     )}
                   </button>
                 </div>
@@ -211,19 +302,51 @@ export default function ProblemDetail() {
               />
             </div>
 
-            {/* Run Output */}
+            {/* Run Output with Test Cases */}
             {runResult && (
-              <div className="bg-slate-900 dark:bg-black rounded-xl shadow-lg border border-slate-700 dark:border-slate-800 overflow-hidden">
-                <div className="bg-slate-800 dark:bg-slate-900 px-4 py-2 border-b border-slate-700 dark:border-slate-800">
+              <div className="bg-slate-900 dark:bg-black rounded-xl shadow-lg border border-slate-700 dark:border-slate-800 overflow-hidden max-h-64 flex flex-col">
+                <div className="bg-slate-800 dark:bg-slate-900 px-4 py-2 border-b border-slate-700 dark:border-slate-800 flex items-center justify-between">
                   <span className="text-white font-semibold text-sm flex items-center gap-2">
                     <span className="text-green-400">▶</span> Run Output
                   </span>
+                  {runResult.testCaseResults && runResult.testCaseResults.length > 0 && (
+                    <button
+                      onClick={() => setShowTestCases(!showTestCases)}
+                      className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                    >
+                      {showTestCases ? 'Hide' : 'Show'} Test Cases
+                    </button>
+                  )}
                 </div>
-                <div className="p-4 max-h-48 overflow-y-auto">
+                <div className="p-4 overflow-y-auto flex-1">
                   {runResult.error ? (
                     <pre className="text-red-400 text-sm font-mono whitespace-pre-wrap">
                       {runResult.error}
                     </pre>
+                  ) : showTestCases && runResult.testCaseResults ? (
+                    <div className="space-y-2">
+                      {runResult.testCaseResults.map((tc, idx) => (
+                        <div key={idx} className={`p-3 rounded-lg border ${
+                          tc.passed 
+                            ? 'bg-green-950 border-green-800' 
+                            : 'bg-red-950 border-red-800'
+                        }`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`font-semibold text-sm ${tc.passed ? 'text-green-400' : 'text-red-400'}`}>
+                              Test Case {tc.testCaseNumber}: {tc.passed ? '✓ Passed' : '✗ Failed'}
+                            </span>
+                            <span className="text-xs text-slate-400">{tc.executionTime}ms</span>
+                          </div>
+                          {!tc.passed && (
+                            <div className="text-xs space-y-1">
+                              <div><span className="text-slate-400">Input:</span> <span className="text-white">{JSON.stringify(tc.input)}</span></div>
+                              <div><span className="text-slate-400">Expected:</span> <span className="text-green-400">{JSON.stringify(tc.expectedOutput)}</span></div>
+                              <div><span className="text-slate-400">Got:</span> <span className="text-red-400">{JSON.stringify(tc.actualOutput)}</span></div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   ) : runResult.output.trim() ? (
                     <pre className="text-green-400 text-sm font-mono whitespace-pre-wrap">
                       {runResult.output}
@@ -249,7 +372,7 @@ export default function ProblemDetail() {
                     ? 'bg-green-100 dark:bg-green-900 border-green-300 dark:border-green-800'
                     : 'bg-red-100 dark:bg-red-900 border-red-300 dark:border-red-800'
                 }`}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <span className={`font-bold text-lg ${
                       result.status === 'Accepted' 
                         ? 'text-green-700 dark:text-green-300' 
@@ -258,18 +381,30 @@ export default function ProblemDetail() {
                       {result.status === 'Accepted' ? '✓ ' : '✗ '}
                       {result.status}
                     </span>
-                    <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
-                      result.status === 'Accepted'
-                        ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
-                        : 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200'
-                    }`}>
-                      {result.passedCases}/{result.totalCases} passed
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                        result.status === 'Accepted'
+                          ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
+                          : 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200'
+                      }`}>
+                        {result.passedCases}/{result.totalCases} passed
+                      </span>
+                      {result.executionTime && (
+                        <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                          {result.executionTime}ms
+                        </span>
+                      )}
+                      {result.memoryUsed && (
+                        <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                          {result.memoryUsed.toFixed(1)}MB
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
                 <div className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-3">
                     <div className="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
                       <div 
                         className={`h-full transition-all duration-500 ${
@@ -284,10 +419,22 @@ export default function ProblemDetail() {
                       {Math.round((result.passedCases / result.totalCases) * 100)}%
                     </span>
                   </div>
+
+                  {result.failedTestCase && result.failedTestCase.input !== 'hidden' && (
+                    <div className="mt-3 p-3 bg-white dark:bg-slate-900 rounded-lg border border-red-200 dark:border-red-800">
+                      <h4 className="font-bold text-sm text-red-700 dark:text-red-400 mb-2">Failed Test Case {result.failedTestCase.testCaseNumber}:</h4>
+                      <div className="text-xs space-y-1 font-mono">
+                        <div><span className="text-slate-600 dark:text-slate-400">Input:</span> <span className="text-slate-800 dark:text-slate-100">{JSON.stringify(result.failedTestCase.input)}</span></div>
+                        <div><span className="text-slate-600 dark:text-slate-400">Expected:</span> <span className="text-green-600 dark:text-green-400">{JSON.stringify(result.failedTestCase.expectedOutput)}</span></div>
+                        <div><span className="text-slate-600 dark:text-slate-400">Your Output:</span> <span className="text-red-600 dark:text-red-400">{JSON.stringify(result.failedTestCase.actualOutput)}</span></div>
+                      </div>
+                    </div>
+                  )}
                   
                   {result.error && (
                     <div className="mt-3 p-3 bg-white dark:bg-slate-900 rounded-lg border border-red-200 dark:border-red-800">
-                      <pre className="text-red-600 dark:text-red-400 text-sm font-mono whitespace-pre-wrap">
+                      <h4 className="font-bold text-sm text-red-700 dark:text-red-400 mb-2">Error:</h4>
+                      <pre className="text-red-600 dark:text-red-400 text-xs font-mono whitespace-pre-wrap">
                         {result.error}
                       </pre>
                     </div>

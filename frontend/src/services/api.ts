@@ -9,7 +9,6 @@ const api = axios.create({
   },
 });
 
-// Add token to requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token && config.headers) {
@@ -18,7 +17,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ==================== AUTH ====================
 export const register = (
   name: string,
   email: string,
@@ -26,7 +24,6 @@ export const register = (
 ) =>
   api.post('/auth/register', { name, email, password });
 
-// ✅ UPDATED LOGIN (supports AbortController)
 export const login = (
   email: string,
   password: string,
@@ -41,7 +38,6 @@ export const login = (
 export const getProfile = () =>
   api.get('/auth/profile');
 
-// ==================== PROBLEMS ====================
 export const getProblems = (difficulty?: string, tag?: string) =>
   api.get('/problems', { params: { difficulty, tag } });
 
@@ -51,7 +47,6 @@ export const getProblem = (id: string) =>
 export const createProblem = (data: any) =>
   api.post('/problems', data);
 
-// ==================== SUBMISSIONS ====================
 export const submitCode = (
   problemId: string,
   code: string,

@@ -7,9 +7,6 @@ import codeExecutor from '../services/codeExecutor';
 
 const ALLOWED_LANGUAGES = ['javascript', 'python'];
 
-// ==========================
-// SUBMIT CODE (JUDGE MODE)
-// ==========================
 export const submitCode = async (req: AuthRequest, res: Response) => {
   try {
     const { problemId, code, language } = req.body;
@@ -23,7 +20,7 @@ export const submitCode = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Unsupported language' });
     }
 
-    const problem = await Problem.findById(problemId).lean();
+    const problem = await Problem.findById(problemId);
     if (!problem) {
       return res.status(404).json({ error: 'Problem not found' });
     }
@@ -32,7 +29,8 @@ export const submitCode = async (req: AuthRequest, res: Response) => {
       code,
       language,
       problem.functionName,
-      problem.testCases
+      problem.testCases,
+      problem.constraints
     );
 
     const submission = await Submission.create({
@@ -44,14 +42,24 @@ export const submitCode = async (req: AuthRequest, res: Response) => {
       accuracy: result.accuracy,
       passedCases: result.passedCases,
       totalCases: result.totalCases,
-      error: result.error
+      executionTime: result.executionTime,
+      memoryUsed: result.memoryUsed,
+      error: result.error,
+      testCaseResults: result.testCaseResults,
+      failedTestCase: result.failedTestCase
     });
 
+    problem.totalSubmissions += 1;
     if (result.status === 'Accepted') {
+      problem.totalAccepted += 1;
       await User.findByIdAndUpdate(userId, {
         $addToSet: { solvedProblems: problemId }
       });
     }
+    problem.acceptanceRate = problem.totalSubmissions > 0 
+      ? (problem.totalAccepted / problem.totalSubmissions) * 100 
+      : 0;
+    await problem.save();
 
     return res.json({
       submissionId: submission._id,
@@ -59,7 +67,10 @@ export const submitCode = async (req: AuthRequest, res: Response) => {
       accuracy: result.accuracy,
       passedCases: result.passedCases,
       totalCases: result.totalCases,
-      error: result.error || null
+      executionTime: result.executionTime,
+      memoryUsed: result.memoryUsed,
+      error: result.error || null,
+      failedTestCase: result.failedTestCase || null
     });
   } catch (err) {
     console.error('Submit error:', err);
@@ -67,12 +78,9 @@ export const submitCode = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// ==========================
-// RUN CODE (REAL-TIME MODE)
-// ==========================
 export const runCode = async (req: AuthRequest, res: Response) => {
   try {
-    const { code, language } = req.body;
+    const { problemId, code, language } = req.body;
 
     if (!code || !language) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -82,22 +90,42 @@ export const runCode = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Unsupported language' });
     }
 
-    // 🔥 REAL-TIME execution (NO test cases, NO expected output)
-    const result = await codeExecutor.runRaw(code, language);
+    if (problemId) {
+      const problem = await Problem.findById(problemId);
+      if (!problem) {
+        return res.status(404).json({ error: 'Problem not found' });
+      }
 
-    return res.json({
-      output: result.stdout || '',
-      error: result.stderr || null
-    });
+      const sampleTestCases = problem.testCases.filter(tc => !tc.isHidden).slice(0, 3);
+      
+      const result = await codeExecutor.execute(
+        code,
+        language,
+        problem.functionName,
+        sampleTestCases,
+        problem.constraints
+      );
+
+      return res.json({
+        output: result.testCaseResults.length > 0 ? JSON.stringify(result.testCaseResults[0].actualOutput) : '',
+        error: result.error || null,
+        testCaseResults: result.testCaseResults,
+        passedCases: result.passedCases,
+        totalCases: result.totalCases
+      });
+    } else {
+      const result = await codeExecutor.runRaw(code, language);
+      return res.json({
+        output: result.stdout || '',
+        error: result.stderr || null
+      });
+    }
   } catch (err) {
     console.error('Run error:', err);
     return res.status(500).json({ error: 'Run execution failed' });
   }
 };
 
-// ==========================
-// GET USER SUBMISSIONS
-// ==========================
 export const getUserSubmissions = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId;
@@ -109,7 +137,8 @@ export const getUserSubmissions = async (req: AuthRequest, res: Response) => {
     const submissions = await Submission.find(query)
       .populate('problemId', 'title difficulty')
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(50)
+      .select('-testCaseResults');
 
     return res.json(submissions);
   } catch (err) {
@@ -118,9 +147,6 @@ export const getUserSubmissions = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// ==========================
-// GET SUBMISSION BY ID
-// ==========================
 export const getSubmissionById = async (req: AuthRequest, res: Response) => {
   try {
     const submission = await Submission.findById(req.params.id)

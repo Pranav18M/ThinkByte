@@ -13,7 +13,14 @@ export const getAllProblems = async (req: Request, res: Response) => {
       .select('-testCases')
       .sort({ createdAt: -1 });
 
-    res.json(problems);
+    const enrichedProblems = problems.map(problem => ({
+      ...problem.toObject(),
+      acceptanceRate: problem.totalSubmissions > 0 
+        ? Math.round((problem.totalAccepted / problem.totalSubmissions) * 100) 
+        : 0
+    }));
+
+    res.json(enrichedProblems);
   } catch (error) {
     console.error('Get problems error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -29,9 +36,17 @@ export const getProblemById = async (req: Request, res: Response) => {
     }
 
     const { testCases, ...problemData } = problem.toObject();
+    
+    const sampleTestCases = testCases.filter(tc => !tc.isHidden).slice(0, 3);
+    
     const response = {
       ...problemData,
-      testCasesCount: testCases.length
+      sampleTestCases,
+      totalTestCases: testCases.length,
+      hiddenTestCases: testCases.filter(tc => tc.isHidden).length,
+      acceptanceRate: problem.totalSubmissions > 0 
+        ? Math.round((problem.totalAccepted / problem.totalSubmissions) * 100) 
+        : 0
     };
 
     res.json(response);
@@ -43,10 +58,21 @@ export const getProblemById = async (req: Request, res: Response) => {
 
 export const createProblem = async (req: Request, res: Response) => {
   try {
-    const { title, description, difficulty, tags, testCases, starterCode } = req.body;
+    const { 
+      title, 
+      description, 
+      difficulty, 
+      tags, 
+      testCases, 
+      starterCode,
+      functionName,
+      constraints,
+      examples,
+      hints
+    } = req.body;
 
-    if (!title || !description || !difficulty || !tags || !testCases || !starterCode) {
-      return res.status(400).json({ error: 'All fields are required' });
+    if (!title || !description || !difficulty || !tags || !testCases || !starterCode || !functionName) {
+      return res.status(400).json({ error: 'Required fields missing' });
     }
 
     const problem = new Problem({
@@ -54,8 +80,15 @@ export const createProblem = async (req: Request, res: Response) => {
       description,
       difficulty,
       tags,
+      functionName,
       testCases,
-      starterCode
+      starterCode,
+      constraints: constraints || { timeLimit: 3000, memoryLimit: 256 },
+      examples: examples || [],
+      hints: hints || [],
+      acceptanceRate: 0,
+      totalSubmissions: 0,
+      totalAccepted: 0
     });
 
     await problem.save();

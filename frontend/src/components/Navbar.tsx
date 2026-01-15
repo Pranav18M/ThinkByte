@@ -36,6 +36,7 @@ export default function Navbar({
           {/* Desktop Navigation */}
           {isAuthenticated && (
             <div className="hidden md:flex items-center gap-4 lg:gap-6">
+              <NavLink to="/dashboard">Explore</NavLink>
               <NavLink to="/problems">Problems</NavLink>
               <NavLink to="/submissions">Submissions</NavLink>
 
@@ -134,7 +135,10 @@ export default function Navbar({
                   </p>
                 </div>
               </div>
-
+              
+              <MobileLink to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                Explore
+              </MobileLink>
               <MobileLink to="/problems" onClick={() => setMobileMenuOpen(false)}>
                 Problems
               </MobileLink>
