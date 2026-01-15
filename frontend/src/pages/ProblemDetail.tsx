@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { getProblem, submitCode, runCode } from '../services/api';
-import { Problem, SubmissionResult, RunResult, TestCaseResult } from '../types';
+import { Problem, SubmissionResult, RunResult} from '../types';
 
 export default function ProblemDetail() {
   const { id } = useParams<{ id: string }>();
