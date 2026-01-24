@@ -24,9 +24,23 @@ app.get('/api/health', (req, res) => {
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://Pranav:Pranav_018@atsresumescanner.sbuvn4m.mongodb.net/CodeMetric_db?retryWrites=true&w=majority';
 
-mongoose.connect(MONGODB_URI)
-  .then(() => {
+// OPTIMIZED: Added connection pooling and timeout settings for MongoDB Atlas free tier
+mongoose.connect(MONGODB_URI, {
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+})
+  .then(async () => {
     console.log('✅ Connected to MongoDB');
+    
+    // CRITICAL: Ensure indexes are created on startup
+    try {
+      await mongoose.connection.db.collection('users').createIndex({ email: 1 });
+      console.log('✅ Database indexes verified');
+    } catch (error) {
+      console.log('ℹ️  Index already exists or creation failed:', error);
+    }
+    
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
