@@ -35,8 +35,10 @@ mongoose.connect(MONGODB_URI, {
     
     // CRITICAL: Ensure indexes are created on startup
     try {
-      await mongoose.connection.db.collection('users').createIndex({ email: 1 });
-      console.log('✅ Database indexes verified');
+      if (mongoose.connection.db) {
+        await mongoose.connection.db.collection('users').createIndex({ email: 1 });
+        console.log('✅ Database indexes verified');
+      }
     } catch (error) {
       console.log('ℹ️  Index already exists or creation failed:', error);
     }
