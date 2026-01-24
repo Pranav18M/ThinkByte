@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 
-const SALT_ROUNDS = 8;
+// FIXED: Changed from 8 to 10 for proper security
+const SALT_ROUNDS = 10;
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -58,7 +59,8 @@ export const login = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const user = await User.findOne({ email }).select('+password').lean();
+    // FIXED: Removed .select('+password') - password field is already included by default
+    const user = await User.findOne({ email }).lean();
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
